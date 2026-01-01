@@ -19,6 +19,10 @@ def get_gspread_client():
 client = get_gspread_client()
 
 
-def get_sheet_values(sheet_name):
-    sheet = client.open(sheet_name).sheet1
+def get_sheet_values(spreadsheet_id, worksheet_name=None):
+    if worksheet_name:
+        sheet = client.open_by_key(spreadsheet_id).worksheet(worksheet_name)
+    else:
+        sheet = client.open_by_key(spreadsheet_id).sheet1
+
     return sheet.get_all_values()
