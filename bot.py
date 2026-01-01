@@ -73,7 +73,7 @@ def build_embed(snapshot):
     embed = discord.Embed(
         title="📦 Inventory Monitor",
         color=discord.Color.blurple(),
-        timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc)  # ✅ timezone-aware UTC
     )
 
     embed.set_thumbnail(url=bot.user.display_avatar.url)
