@@ -107,7 +107,7 @@ def build_embed(inventory_snapshots):
         timestamp=datetime.now(timezone.utc)
     )
 
-    embed.set_thumbnail(url=bot.user.display_avatar.url)
+    #embed.set_thumbnail(url=bot.user.display_avatar.url)
 
     for name, data in inventory_snapshots.items():
         emoji = data["emoji"]
@@ -121,30 +121,23 @@ def build_embed(inventory_snapshots):
         ]
 
         for item in items:
+            item_name = item['item'][:14]  # max 14 chars
             qty = item["qty"]
-            bar = qty_bar(qty, target)
+            bar = qty_bar(qty, target, width=5)  # fits neatly
             status = scarcity_icon(item["scarcity"])
-
             if qty < target:
                 status += " ⚠"
-
-            lines.append(
-                f"{item['item']:<14} | "
-                f"{qty:<3} | "
-                f"{bar} | "
-                f"{status}"
-            )
-
-        lines.append("```")
-
-        embed.add_field(
-            name=f"{emoji} {name}",
-            value="\n".join(lines),
-            inline=False
-        )
-
-    embed.set_footer(text="Auto-updates every 15 minutes")
-    return embed
+        
+            lines.append(f"{item_name:<14} | {qty:<3} | {bar} | {status}")        
+        
+                embed.add_field(
+                    name=f"{emoji} {name}",
+                    value="\n".join(lines),
+                    inline=False
+                )
+        
+            embed.set_footer(text="Auto-updates every 15 minutes")
+            return embed
 
 
 
