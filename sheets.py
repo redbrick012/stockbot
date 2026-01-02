@@ -3,6 +3,9 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 
+SPREADSHEET_ID = os.environ["SPREADSHEET_ID"]
+client = gspread.authorize(creds)
+
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
