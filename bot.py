@@ -130,14 +130,14 @@ def build_embed(inventory_snapshots):
         
             lines.append(f"{item_name:<14} | {qty:<3} | {bar} | {status}")        
         
-                embed.add_field(
-                    name=f"{emoji} {name}",
-                    value="\n".join(lines),
-                    inline=False
-                )
+    embed.add_field(
+        name=f"{emoji} {name}",
+        value="\n".join(lines),
+        inline=False
+    )
         
-            embed.set_footer(text="Auto-updates every 15 minutes")
-            return embed
+    embed.set_footer(text="Auto-updates every 15 minutes")
+    return embed
 
 
 
