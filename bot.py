@@ -76,25 +76,23 @@ def scarcity_icon(level: int) -> str:
     return "🟩"
 
 def parse_inventory(values, target_qty):
-    snapshot = {}
+    items = []
 
     for row in values[1:]:  # skip headers
-        if len(row) <= COL_REGION:
+        if len(row) <= COL_ITEM:
             continue
 
         try:
-            region = row[COL_REGION] or "Other"
-            country = row[COL_COUNTRY]
-
-            snapshot.setdefault(region, {})[country] = {
+            items.append({
+                "item": row[COL_ITEM],
                 "qty": int(row[COL_QTY] or 0),
                 "scarcity": int(row[COL_SCARCITY] or 0),
                 "target": target_qty,
-            }
+            })
         except ValueError:
             continue
 
-    return snapshot
+    return items
 
 
 def build_embed(inventory_snapshots):
@@ -108,47 +106,41 @@ def build_embed(inventory_snapshots):
 
     for name, data in inventory_snapshots.items():
         emoji = data["emoji"]
-        snapshot = data["snapshot"]
+        items = data["snapshot"]
         target = data["target"]
 
+        lines = [
+            "```",
+            "Item           | Qty | Progress   | Status",
+            "──────────────────────────────────────────"
+        ]
+
+        for item in items:
+            qty = item["qty"]
+            bar = qty_bar(qty, target)
+            status = scarcity_icon(item["scarcity"])
+
+            if qty < target:
+                status += " ⚠"
+
+            lines.append(
+                f"{item['item']:<14} | "
+                f"{qty:<3} | "
+                f"{bar} | "
+                f"{status}"
+            )
+
+        lines.append("```")
+
         embed.add_field(
-            name=f"{emoji} {name}",
-            value=f"Target per country: **{target}**",
+            name=f"{emoji} {name} (Target: {target})",
+            value="\n".join(lines),
             inline=False
         )
 
-        for region, countries in snapshot.items():
-            lines = [
-                "```",
-                "Country      | Qty | Bar        | Status",
-                "────────────────────────────────────"
-            ]
-
-            for country, item in countries.items():
-                qty = item["qty"]
-                bar = qty_bar(qty, target)
-                status = scarcity_icon(item["scarcity"])
-
-                if qty < target:
-                    status += " ⚠"
-
-                lines.append(
-                    f"{country:<12} | "
-                    f"{qty:<3} | "
-                    f"{bar} | "
-                    f"{status}"
-                )
-
-            lines.append("```")
-
-            embed.add_field(
-                name=f"🌍 {region}",
-                value="\n".join(lines),
-                inline=False
-            )
-
     embed.set_footer(text="Auto-updates every 15 minutes")
     return embed
+
 
 
 # =====================
