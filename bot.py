@@ -134,7 +134,7 @@ def build_embed(inventory_snapshots):
             lines.append(
                 f"{item_name} | "
                 f"{qty:<3} | "
-                f"{bar} | "
+                f"{bar} "
                 #f"{status}"
             )
 
