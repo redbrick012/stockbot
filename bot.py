@@ -66,6 +66,9 @@ def get_cell_value(sheet_name, cell):
         return 0
 
 def qty_bar(current: int, target: int, width: int = 10) -> str:
+    if target <= 0:
+        return "⬛" * width  # or "❓" * width if you prefer
+
     ratio = min(current / target, 1)
     filled = round(ratio * width)
     return "🟩" * filled + "⬛" * (width - filled)
