@@ -20,6 +20,7 @@ COL_COUNTRY = 1
 COL_VALUE = 2
 COL_SCARCITY = 3
 COL_REGION = 5
+COL_ITEM = 0
 
 # =====================
 # INVENTORY CONFIG
