@@ -116,8 +116,8 @@ def build_embed(inventory_snapshots):
 
         lines = [
             "```",
-            "Item           | Qty | Progress   | Status",
-            "──────────────────────────────────────────"
+            "Item           | Qty | Progress   ",
+            "──────────────────────────────────"
         ]
 
         for item in items:
@@ -135,7 +135,7 @@ def build_embed(inventory_snapshots):
                 f"{item_name} | "
                 f"{qty:<3} | "
                 f"{bar} | "
-                f"{status}"
+                #f"{status}"
             )
 
         lines.append("```")
