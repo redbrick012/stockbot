@@ -11,7 +11,6 @@ from sheets import get_sheet_values
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 INVENTORY_SHEET = os.environ["INVENTORY_SHEET"]
 INVENTORY_CHANNEL_ID = int(os.environ["INVENTORY_CHANNEL_ID"])
-TARGET_QTY = int(os.environ.get("TARGET_QTY", 200))
 
 # =====================
 # SHEET COLUMN INDEXES
@@ -21,6 +20,22 @@ COL_COUNTRY = 1
 COL_VALUE = 2
 COL_SCARCITY = 3
 COL_REGION = 5
+
+# =====================
+# INVENTORY CONFIG
+# =====================
+INVENTORIES = {
+    "Plushies": {
+        "range": "B3:G16",
+        "target_cell": "J3",
+        "emoji": "🧸",
+    },
+    "Flowers": {
+        "range": "B20:G31",
+        "target_cell": "J21",
+        "emoji": "🌸",
+    },
+}
 
 # =====================
 # DISCORD SETUP
@@ -37,6 +52,16 @@ posted_message_id = None
 # =====================
 # HELPERS
 # =====================
+def get_range(sheet, cell_range):
+    return get_sheet_values(f"{sheet}!{cell_range}")
+
+def get_cell_value(sheet, cell):
+    values = get_sheet_values(f"{sheet}!{cell}")
+    try:
+        return int(values[0][0])
+    except Exception:
+        return 0
+
 def qty_bar(current: int, target: int, width: int = 10) -> str:
     ratio = min(current / target, 1)
     filled = round(ratio * width)
@@ -49,10 +74,10 @@ def scarcity_icon(level: int) -> str:
         return "🟨"
     return "🟩"
 
-def parse_inventory(values):
+def parse_inventory(values, target_qty):
     snapshot = {}
 
-    for row in values[1:]:
+    for row in values[1:]:  # skip headers
         if len(row) <= COL_REGION:
             continue
 
@@ -63,75 +88,98 @@ def parse_inventory(values):
             snapshot.setdefault(region, {})[country] = {
                 "qty": int(row[COL_QTY] or 0),
                 "scarcity": int(row[COL_SCARCITY] or 0),
+                "target": target_qty,
             }
         except ValueError:
             continue
 
     return snapshot
 
-def build_embed(snapshot):
+
+def build_embed(inventory_snapshots):
     embed = discord.Embed(
         title="📦 Inventory Monitor",
         color=discord.Color.blurple(),
-        timestamp=datetime.now(timezone.utc)  # ✅ timezone-aware UTC
+        timestamp=datetime.now(timezone.utc)
     )
 
     embed.set_thumbnail(url=bot.user.display_avatar.url)
 
-    for region, countries in snapshot.items():
-        lines = [
-            "```",
-            "Country      | Qty | Bar        | Status",
-            "────────────────────────────────────"
-        ]
-
-        for country, data in countries.items():
-            qty = data["qty"]
-            bar = qty_bar(qty, TARGET_QTY)
-            status = scarcity_icon(data["scarcity"])
-
-            if qty < TARGET_QTY:
-                status += " ⚠"
-
-            lines.append(
-                f"{country:<12} | "
-                f"{qty:<3} | "
-                f"{bar} | "
-                f"{status}"
-            )
-
-        lines.append("```")
+    for name, data in inventory_snapshots.items():
+        emoji = data["emoji"]
+        snapshot = data["snapshot"]
+        target = data["target"]
 
         embed.add_field(
-            name=f"🌍 {region}",
-            value="\n".join(lines),
+            name=f"{emoji} {name}",
+            value=f"Target per country: **{target}**",
             inline=False
         )
 
-    embed.set_footer(
-        text=f"Target Qty: {TARGET_QTY} • Auto-updates every 15 minutes"
-    )
+        for region, countries in snapshot.items():
+            lines = [
+                "```",
+                "Country      | Qty | Bar        | Status",
+                "────────────────────────────────────"
+            ]
 
+            for country, item in countries.items():
+                qty = item["qty"]
+                bar = qty_bar(qty, target)
+                status = scarcity_icon(item["scarcity"])
+
+                if qty < target:
+                    status += " ⚠"
+
+                lines.append(
+                    f"{country:<12} | "
+                    f"{qty:<3} | "
+                    f"{bar} | "
+                    f"{status}"
+                )
+
+            lines.append("```")
+
+            embed.add_field(
+                name=f"🌍 {region}",
+                value="\n".join(lines),
+                inline=False
+            )
+
+    embed.set_footer(text="Auto-updates every 15 minutes")
     return embed
+
 
 # =====================
 # MAIN LOOP
-# =====================
 @tasks.loop(minutes=15)
 async def inventory_task():
-    global previous_snapshot, posted_message_id
+    global posted_message_id
 
     channel = bot.get_channel(INVENTORY_CHANNEL_ID)
     if not channel:
         return
 
-    values = get_sheet_values(INVENTORY_SHEET)
-    if not values:
+    inventories = {}
+
+    for name, cfg in INVENTORIES.items():
+        values = get_range(INVENTORY_SHEET, cfg["range"])
+        if not values:
+            continue
+
+        target = get_cell_value(INVENTORY_SHEET, cfg["target_cell"])
+        snapshot = parse_inventory(values, target)
+
+        inventories[name] = {
+            "snapshot": snapshot,
+            "target": target,
+            "emoji": cfg["emoji"],
+        }
+
+    if not inventories:
         return
 
-    current = parse_inventory(values)
-
-    embed = build_embed(current)
+    embed = build_embed(inventories)
 
     if posted_message_id:
         try:
@@ -144,7 +192,6 @@ async def inventory_task():
         msg = await channel.send(embed=embed)
         posted_message_id = msg.id
 
-    previous_snapshot = current
 
 # =====================
 # EVENTS
