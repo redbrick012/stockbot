@@ -107,7 +107,7 @@ def build_embed(inventory_snapshots):
         timestamp=datetime.now(timezone.utc)
     )
 
-    embed.set_thumbnail(url=bot.user.display_avatar.url)
+    #embed.set_thumbnail(url=bot.user.display_avatar.url)
 
     for name, data in inventory_snapshots.items():
         emoji = data["emoji"]
@@ -124,15 +124,15 @@ def build_embed(inventory_snapshots):
             qty = item["qty"]
             bar = qty_bar(qty, target)
             status = scarcity_icon(item["scarcity"])
-
+        
             if qty < target:
                 status += " ⚠"
-                
-            # truncate item name to max 14 characters
-            item_name = item["item"][:14]
-
+        
+            # truncate the item name to 14 characters, then pad it to always be 14 chars
+            item_name = item["item"][:14].ljust(14)
+        
             lines.append(
-                f"{item['item']:<14} | "
+                f"{item_name} | "
                 f"{qty:<3} | "
                 f"{bar} | "
                 f"{status}"
