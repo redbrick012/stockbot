@@ -52,13 +52,14 @@ posted_message_id = None
 # =====================
 # HELPERS
 # =====================
-def get_range(sheet, cell_range):
-    return get_sheet_values(f"{sheet}!{cell_range}")
+def get_range(sheet_name, cell_range):
+    worksheet = get_sheet_values(sheet_name, worksheet_only=True)
+    return worksheet.get(cell_range)
 
-def get_cell_value(sheet, cell):
-    values = get_sheet_values(f"{sheet}!{cell}")
+def get_cell_value(sheet_name, cell):
+    worksheet = get_sheet_values(sheet_name, worksheet_only=True)
     try:
-        return int(values[0][0])
+        return int(worksheet.acell(cell).value)
     except Exception:
         return 0
 
