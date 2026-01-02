@@ -29,7 +29,7 @@ COL_REGION = 5
 INVENTORIES = {
     "Plushies": {
         "range": "B3:G16",
-        "target_cell": "J3",
+        "target_cell": "J4",
         "emoji": "🧸",
     },
     "Flowers": {
