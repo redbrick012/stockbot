@@ -15,12 +15,13 @@ INVENTORY_CHANNEL_ID = int(os.environ["INVENTORY_CHANNEL_ID"])
 # =====================
 # SHEET COLUMN INDEXES
 # =====================
-COL_QTY = 0
-COL_COUNTRY = 1
-COL_VALUE = 2
-COL_SCARCITY = 3
+COL_ITEM = 0      # ⬅️ MUST be here
+COL_QTY = 1
+COL_COUNTRY = 2
+COL_VALUE = 3
+COL_SCARCITY = 4
+
 COL_REGION = 5
-COL_ITEM = 0
 
 # =====================
 # INVENTORY CONFIG
@@ -134,7 +135,7 @@ def build_embed(inventory_snapshots):
         lines.append("```")
 
         embed.add_field(
-            name=f"{emoji} {name} (Target: {target})",
+            name=f"{emoji} {name}",
             value="\n".join(lines),
             inline=False
         )
