@@ -81,7 +81,7 @@ def get_cell_value(sheet_name, cell):
     except Exception:
         return 0
 
-def qty_bar(current: int, target: int, width: int = 3) -> str:
+def qty_bar(current: int, target: int, width: int = 5) -> str:
     if target <= 0:
         return "⬛" * width
 
@@ -185,7 +185,7 @@ def build_embed(inventory_snapshots):
             bar = qty_bar(qty, target)
 
             flag = item["country_emoji"]
-            item_name = item["item"][:12]  # no padding needed now
+            item_name = item["item"][:12].ljust(10)  # no padding needed now
 
             lines.append(
                 f"{flag} **{item_name}** {qty:<3} {bar}"
