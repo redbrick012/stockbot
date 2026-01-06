@@ -44,7 +44,7 @@ COUNTRY_EMOJIS = {
     "Mexico": "<:mx:1458203844474572801>",
     "Cayman Islands": "<:ky:1458203876544221459>",
     "Canada": "<:ca:1458204026813415517>",
-    "Hawaii": ":<:ushi:1458203802342522981>",  # US state, not country
+    "Hawaii": "<:ushi:1458203802342522981>",  # US state, not country
     "United Kingdom": "<:gb:1458203934647910441>",
     "Argentina": "<:ar:1458204051970986170>",
     "Switzerland": "<:ch:1458203997964861590>",
@@ -144,10 +144,10 @@ def build_embed(inventory_snapshots):
             bar = qty_bar(qty, target)
 
             flag = item["country_emoji"]
-            item_name = item["item"][:13].ljust(13)
+            item_name = item["item"][:15].ljust(15)
 
             lines.append(
-                f"{flag} {item_name} | "
+                f"{flag}  {item_name} | "
                 f"{qty:<3} | "
                 f"{bar}"
             )
