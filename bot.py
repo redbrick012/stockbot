@@ -223,7 +223,7 @@ def build_inventory_embeds(inventory_snapshots):
             # Category header field (only for the first chunk)
             if i == 0:
                 embed.add_field(
-                    #name=f"{category_emoji} {name}",
+                    name=f"{category_emoji} {name}",
                     value="―" * 20,
                     inline=False
                 )
