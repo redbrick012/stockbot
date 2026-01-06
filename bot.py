@@ -39,6 +39,21 @@ INVENTORIES = {
     },
 }
 
+COUNTRY_EMOJIS = {
+    "Torn": "🏠",
+    "Mexico": "🇲🇽",
+    "Cayman Islands": "🇰🇾",
+    "Canada": "🇨🇦",
+    "Hawaii": "🌺",  # US state, not country
+    "United Kingdom": "🇬🇧",
+    "Argentina": "🇦🇷",
+    "Switzerland": "🇨🇭",
+    "Japan": "🇯🇵",
+    "China": "🇨🇳",
+    "UAE": "🇦🇪",
+    "South Africa": "🇿🇦",
+}
+
 # =====================
 # DISCORD SETUP
 # =====================
@@ -83,15 +98,19 @@ def scarcity_icon(level: int) -> str:
 def parse_inventory(values, target_qty):
     items = []
 
-    for row in values[1:]:  # skip headers
-        if len(row) <= COL_ITEM:
+    for row in values[1:]:
+        if len(row) <= COL_SCARCITY:
             continue
 
         try:
+            country = row[COL_COUNTRY]
+
             items.append({
                 "item": row[COL_ITEM],
                 "qty": int(row[COL_QTY] or 0),
                 "scarcity": int(row[COL_SCARCITY] or 0),
+                "country": country,
+                "country_emoji": country_emoji(country),
                 "target": target_qty,
             })
         except ValueError:
@@ -99,6 +118,8 @@ def parse_inventory(values, target_qty):
 
     return items
 
+def country_emoji(country: str) -> str:
+    return COUNTRY_EMOJIS.get(country, "🌍")
 
 def build_embed(inventory_snapshots):
     embed = discord.Embed(
@@ -107,35 +128,28 @@ def build_embed(inventory_snapshots):
         timestamp=datetime.now(timezone.utc)
     )
 
-    #embed.set_thumbnail(url=bot.user.display_avatar.url)
-
     for name, data in inventory_snapshots.items():
-        emoji = data["emoji"]
+        emoji = data["emoji"]  # ✅ correct emoji source
         items = data["snapshot"]
         target = data["target"]
 
         lines = [
             "```",
-            "Item           | Qty | Progress   ",
-            "──────────────────────────────────"
+            "Flag Item           | Qty | Progress",
+            "────────────────────────────────────"
         ]
 
         for item in items:
             qty = item["qty"]
             bar = qty_bar(qty, target)
-            status = scarcity_icon(item["scarcity"])
-        
-            if qty < target:
-                status += " ⚠"
-        
-            # truncate the item name to 14 characters, then pad it to always be 14 chars
-            item_name = item["item"][:14].ljust(14)
-        
+
+            flag = item["country_emoji"]
+            item_name = item["item"][:13].ljust(13)
+
             lines.append(
-                f"{item_name} | "
+                f"{flag} {item_name} | "
                 f"{qty:<3} | "
-                f"{bar} "
-                #f"{status}"
+                f"{bar}"
             )
 
         lines.append("```")
