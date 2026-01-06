@@ -237,7 +237,7 @@ def build_inventory_embeds(inventory_snapshots):
                 embed.add_field(
                     name=f"{flag} {item_name}",
                     value=f"Qty: {qty}  {bar}",
-                    inline=False
+                    inline=True
                 )
 
             embed.set_footer(text="Auto-updates every 15 minutes")
