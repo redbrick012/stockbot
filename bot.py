@@ -208,51 +208,29 @@ def build_embed(inventory_snapshots):
     )
 
     for name, data in inventory_snapshots.items():
-        emoji = data["emoji"]
+        category_emoji = data["emoji"]
         items = data["snapshot"]
         target = data["target"]
 
-        # Prepare lists for three inline fields
-        field_names = []
-        field_qtys = []
-        field_bars = []
+        # Add a field as a header for the category
+        embed.add_field(
+            name=f"{category_emoji} {name}",
+            value="―" * 20,
+            inline=False
+        )
 
-        # Determine maximum width for the bar so it doesn't wrap
-        # Discord inline field ~ 30–35 characters per column
-        max_bar_width = 10
-        if items:
-            # Reduce bar width slightly if item names are long
-            longest_name = max(len(item["item"]) for item in items)
-            max_bar_width = max(5, 12 - longest_name // 2)
-
+        # Add **one field per item** (mobile-friendly)
         for item in items:
-            qty = item["qty"]
-            # dynamically adjust bar width per item
-            bar = qty_bar(qty, target, width=max_bar_width)
-
             flag = item.get("country_emoji", "🏳️")
-            item_name = item["item"][:12]  # truncate to 12 chars
+            item_name = item["item"][:12]  # truncate if needed
+            qty = item["qty"]
+            bar = qty_bar(qty, target)
 
-            field_names.append(f"{flag} **{item_name}**")
-            field_qtys.append(f"{qty}")
-            field_bars.append(f"{bar}")
-
-        # Add three inline fields
-        embed.add_field(
-            name=f"{emoji} {name} – Item",
-            value="\n".join(field_names),
-            inline=True
-        )
-        embed.add_field(
-            name="Qty",
-            value="\n".join(field_qtys),
-            inline=True
-        )
-        embed.add_field(
-            name="Progress",
-            value="\n".join(field_bars),
-            inline=True
-        )
+            embed.add_field(
+                name=f"{flag} {item_name}",
+                value=f"Qty: {qty}  {bar}",
+                inline=False
+            )
 
     embed.set_footer(text="Auto-updates every 15 minutes")
     return embed
