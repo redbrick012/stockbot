@@ -58,6 +58,7 @@ COUNTRY_EMOJIS = {
 # DISCORD SETUP
 # =====================
 intents = discord.Intents.default()
+intents.emojis = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # =====================
