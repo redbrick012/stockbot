@@ -223,14 +223,14 @@ def build_inventory_embeds(inventory_snapshots):
             # Category header field (only for the first chunk)
             if i == 0:
                 embed.add_field(
-                    name=f"{category_emoji} {name}",
+                    #name=f"{category_emoji} {name}",
                     value="―" * 20,
                     inline=False
                 )
 
             for item in chunk:
                 flag = item.get("country_emoji", "🏳️")
-                item_name = item["item"][:12]  # truncate
+                item_name = item["item"]#[:12]  # truncate
                 qty = item["qty"]
                 bar = qty_bar(qty, target)
 
