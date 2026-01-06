@@ -122,6 +122,48 @@ def parse_inventory(values, target_qty):
 def country_emoji(country: str) -> str:
     return COUNTRY_EMOJIS.get(country, "🌍")
 
+#def build_embed(inventory_snapshots):
+ #   embed = discord.Embed(
+ #       title="📦 Inventory Monitor",
+ #       color=discord.Color.blurple(),
+ #       timestamp=datetime.now(timezone.utc)
+ #   )
+
+ #   for name, data in inventory_snapshots.items():
+ #       emoji = data["emoji"]  # ✅ correct emoji source
+ #       items = data["snapshot"]
+ #       target = data["target"]
+
+ #       lines = [
+ #           "```",
+ #           "Item             | Qty | Progress",
+ #           "────────────────────────────────────"
+ #       ]
+
+ #       for item in items:
+ #           qty = item["qty"]
+ #           bar = qty_bar(qty, target)
+
+ #           flag = item["country_emoji"]
+ #           item_name = item["item"][:15].ljust(15)
+
+ #           lines.append(
+ #               f"{flag}  {item_name} | "
+ #               f"{qty:<3} | "
+ #               f"{bar}"
+ #           )
+
+#        lines.append("```")
+
+#        embed.add_field(
+#            name=f"{emoji} {name}",
+#            value="\n".join(lines),
+#            inline=False
+#        )
+
+#    embed.set_footer(text="Auto-updates every 15 minutes")
+#    return embed
+
 def build_embed(inventory_snapshots):
     embed = discord.Embed(
         title="📦 Inventory Monitor",
@@ -130,14 +172,12 @@ def build_embed(inventory_snapshots):
     )
 
     for name, data in inventory_snapshots.items():
-        emoji = data["emoji"]  # ✅ correct emoji source
+        emoji = data["emoji"]
         items = data["snapshot"]
         target = data["target"]
 
         lines = [
-            "```",
-            "Item             | Qty | Progress",
-            "────────────────────────────────────"
+            "**Flag  Item**      **Qty** **Progress**",
         ]
 
         for item in items:
@@ -145,15 +185,11 @@ def build_embed(inventory_snapshots):
             bar = qty_bar(qty, target)
 
             flag = item["country_emoji"]
-            item_name = item["item"][:15].ljust(15)
+            item_name = item["item"][:18]  # no padding needed now
 
             lines.append(
-                f"{flag}  {item_name} | "
-                f"{qty:<3} | "
-                f"{bar}"
+                f"{flag} **{item_name}** {qty:<3} {bar}"
             )
-
-        lines.append("```")
 
         embed.add_field(
             name=f"{emoji} {name}",
@@ -163,7 +199,6 @@ def build_embed(inventory_snapshots):
 
     embed.set_footer(text="Auto-updates every 15 minutes")
     return embed
-
 
 
 # =====================
