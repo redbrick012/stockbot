@@ -135,7 +135,7 @@ def build_embed(inventory_snapshots):
 
         lines = [
             "```",
-            "Item           | Qty | Progress",
+            "Item             | Qty | Progress",
             "────────────────────────────────────"
         ]
 
