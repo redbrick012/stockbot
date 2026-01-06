@@ -40,18 +40,18 @@ INVENTORIES = {
 }
 
 COUNTRY_EMOJIS = {
-    "Torn": ":house:",
-    "Mexico": ":flag_🇲🇽:",
-    "Cayman Islands": ":flag_🇰🇾:",
-    "Canada": ":flag_🇨🇦:",
-    "Hawaii": "🌺",  # US state, not country
-    "United Kingdom": ":flag_🇬🇧:",
-    "Argentina": ":flag_🇦🇷:",
-    "Switzerland": ":flag_🇨🇭:",
-    "Japan": ":flag_🇯🇵:",
-    "China": ":flag_🇨🇳:",
-    "UAE": ":flag_🇦🇪:",
-    "South Africa": ":flag_🇿🇦:",
+    "Torn": "<:city:1458205750617833596>",
+    "Mexico": "<:mx:1458203844474572801>",
+    "Cayman Islands": "<:ky:1458203876544221459>",
+    "Canada": "<:ca:1458204026813415517>",
+    "Hawaii": ":<:ushi:1458203802342522981>",  # US state, not country
+    "United Kingdom": "<:gb:1458203934647910441>",
+    "Argentina": "<:ar:1458204051970986170>",
+    "Switzerland": "<:ch:1458203997964861590>",
+    "Japan": "<:jp:1458203900594094270>",
+    "China": "<:cn:1458203968059474042>",
+    "UAE": "<:ae:1458203747749728610>",
+    "South Africa": "<:za:1458204114524569640>",
 }
 
 # =====================
