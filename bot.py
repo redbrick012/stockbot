@@ -200,62 +200,74 @@ def country_emoji(country: str) -> str:
 #    embed.set_footer(text="Auto-updates every 15 minutes")
  #   return embed
 
-def build_embed(inventory_snapshots):
-    embed = discord.Embed(
-        title="📦 Inventory Monitor",
-        color=discord.Color.blurple(),
-        timestamp=datetime.now(timezone.utc)
-    )
+def build_inventory_embeds(inventory_snapshots):
+    """Return a list of embeds, each with <=25 fields."""
+    embeds = []
 
     for name, data in inventory_snapshots.items():
         category_emoji = data["emoji"]
         items = data["snapshot"]
         target = data["target"]
 
-        # Add a field as a header for the category
-        embed.add_field(
-            name=f"{category_emoji} {name}",
-            value="―" * 20,
-            inline=False
-        )
+        # Split items into chunks of 24 (reserve 1 field for category header)
+        chunk_size = 24
+        for i in range(0, len(items), chunk_size):
+            chunk = items[i:i + chunk_size]
 
-        # Add **one field per item** (mobile-friendly)
-        for item in items:
-            flag = item.get("country_emoji", "🏳️")
-            item_name = item["item"][:12]  # truncate if needed
-            qty = item["qty"]
-            bar = qty_bar(qty, target)
-
-            embed.add_field(
-                name=f"{flag} {item_name}",
-                value=f"Qty: {qty}  {bar}",
-                inline=False
+            embed = discord.Embed(
+                title=f"{category_emoji} {name}" if i == 0 else f"{category_emoji} {name} (cont.)",
+                color=discord.Color.blurple(),
+                timestamp=datetime.now(timezone.utc)
             )
 
-    embed.set_footer(text="Auto-updates every 15 minutes")
-    return embed
+            # Category header field (only for the first chunk)
+            if i == 0:
+                embed.add_field(
+                    name=f"{category_emoji} {name}",
+                    value="―" * 20,
+                    inline=False
+                )
 
+            for item in chunk:
+                flag = item.get("country_emoji", "🏳️")
+                item_name = item["item"][:12]  # truncate
+                qty = item["qty"]
+                bar = qty_bar(qty, target)
+
+                embed.add_field(
+                    name=f"{flag} {item_name}",
+                    value=f"Qty: {qty}  {bar}",
+                    inline=False
+                )
+
+            embed.set_footer(text="Auto-updates every 15 minutes")
+            embeds.append(embed)
+
+    return embeds
+
+# =====================
+# STATE
+# =====================
+posted_message_ids = []  # Keep all message IDs for the current inventory embeds
 
 # =====================
 # MAIN LOOP
+# =====================
 @tasks.loop(minutes=15)
 async def inventory_task():
-    global posted_message_id
+    global posted_message_ids
 
     channel = bot.get_channel(INVENTORY_CHANNEL_ID)
     if not channel:
         return
 
     inventories = {}
-
     for name, cfg in INVENTORIES.items():
         values = get_range(INVENTORY_SHEET, cfg["range"])
         if not values:
             continue
-
         target = get_cell_value(INVENTORY_SHEET, cfg["target_cell"])
         snapshot = parse_inventory(values, target)
-
         inventories[name] = {
             "snapshot": snapshot,
             "target": target,
@@ -265,19 +277,48 @@ async def inventory_task():
     if not inventories:
         return
 
-    embed = build_embed(inventories)
+    embeds = build_inventory_embeds(inventories)
 
-    if posted_message_id:
+    # Fetch old messages and delete extra ones if needed
+    if posted_message_ids:
+        # Fetch existing messages
         try:
-            message = await channel.fetch_message(posted_message_id)
-            await message.edit(embed=embed)
-        except discord.NotFound:
-            msg = await channel.send(embed=embed)
-            posted_message_id = msg.id
-    else:
-        msg = await channel.send(embed=embed)
-        posted_message_id = msg.id
+            old_messages = []
+            for msg_id in posted_message_ids:
+                try:
+                    old_messages.append(await channel.fetch_message(msg_id))
+                except discord.NotFound:
+                    continue
 
+            # Delete any old extra messages beyond the new embeds
+            for old_msg in old_messages[len(embeds):]:
+                await old_msg.delete()
+
+            # Edit first n embeds
+            for i, embed in enumerate(embeds):
+                if i < len(old_messages):
+                    await old_messages[i].edit(embed=embed)
+                else:
+                    msg = await channel.send(embed=embed)
+                    posted_message_ids.append(msg.id)
+
+            # Trim list to current embeds
+            posted_message_ids = posted_message_ids[:len(embeds)]
+
+        except Exception as e:
+            print(f"Error updating embeds: {e}")
+            # If something went wrong, clear list and resend
+            posted_message_ids = []
+            for e in embeds:
+                msg = await channel.send(embed=e)
+                posted_message_ids.append(msg.id)
+
+    else:
+        # First time posting
+        posted_message_ids = []
+        for e in embeds:
+            msg = await channel.send(embed=e)
+            posted_message_ids.append(msg.id)
 
 # =====================
 # EVENTS
