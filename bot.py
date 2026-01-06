@@ -181,7 +181,7 @@ def build_embed(inventory_snapshots):
         ]
 
         for item in items:
-            qty = item["qty"][:4}
+            qty = item["qty"]
             bar = qty_bar(qty, target)
 
             flag = item["country_emoji"]
