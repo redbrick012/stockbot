@@ -164,6 +164,42 @@ def country_emoji(country: str) -> str:
 #    embed.set_footer(text="Auto-updates every 15 minutes")
 #    return embed
 
+#def build_embed(inventory_snapshots):
+ #   embed = discord.Embed(
+#        title="📦 Inventory Monitor",
+ #       color=discord.Color.blurple(),
+        #timestamp=datetime.now(timezone.utc)
+#    )
+
+#    for name, data in inventory_snapshots.items():
+#        emoji = data["emoji"]
+#        items = data["snapshot"]
+ #       target = data["target"]
+
+#        lines = [
+#            "**Flag  Item**      **Qty** **Progress**",
+#        ]
+
+#        for item in items:
+#            qty = item["qty"]
+#            bar = qty_bar(qty, target)
+
+ #           flag = item["country_emoji"]
+  #          item_name = item["item"][:12].ljust(10)  # no padding needed now
+
+#            lines.append(
+#                f"{flag} **{item_name}** {qty:<3} {bar}"
+#            )
+
+#        embed.add_field(
+#            name=f"{emoji} {name}",
+ #           value="\n".join(lines),
+ #           inline=False
+  #      )
+
+#    embed.set_footer(text="Auto-updates every 15 minutes")
+ #   return embed
+
 def build_embed(inventory_snapshots):
     embed = discord.Embed(
         title="📦 Inventory Monitor",
@@ -176,25 +212,46 @@ def build_embed(inventory_snapshots):
         items = data["snapshot"]
         target = data["target"]
 
-        lines = [
-            "**Flag  Item**      **Qty** **Progress**",
-        ]
+        # Prepare lists for three inline fields
+        field_names = []
+        field_qtys = []
+        field_bars = []
+
+        # Determine maximum width for the bar so it doesn't wrap
+        # Discord inline field ~ 30–35 characters per column
+        max_bar_width = 10
+        if items:
+            # Reduce bar width slightly if item names are long
+            longest_name = max(len(item["item"]) for item in items)
+            max_bar_width = max(5, 12 - longest_name // 2)
 
         for item in items:
             qty = item["qty"]
-            bar = qty_bar(qty, target)
+            # dynamically adjust bar width per item
+            bar = qty_bar(qty, target, width=max_bar_width)
 
-            flag = item["country_emoji"]
-            item_name = item["item"][:12].ljust(10)  # no padding needed now
+            flag = item.get("country_emoji", "🏳️")
+            item_name = item["item"][:12]  # truncate to 12 chars
 
-            lines.append(
-                f"{flag} **{item_name}** {qty:<3} {bar}"
-            )
+            field_names.append(f"{flag} **{item_name}**")
+            field_qtys.append(f"{qty}")
+            field_bars.append(f"{bar}")
 
+        # Add three inline fields
         embed.add_field(
-            name=f"{emoji} {name}",
-            value="\n".join(lines),
-            inline=False
+            name=f"{emoji} {name} – Item",
+            value="\n".join(field_names),
+            inline=True
+        )
+        embed.add_field(
+            name="Qty",
+            value="\n".join(field_qtys),
+            inline=True
+        )
+        embed.add_field(
+            name="Progress",
+            value="\n".join(field_bars),
+            inline=True
         )
 
     embed.set_footer(text="Auto-updates every 15 minutes")
