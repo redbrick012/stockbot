@@ -40,18 +40,18 @@ INVENTORIES = {
 }
 
 COUNTRY_EMOJIS = {
-    "Torn": "🏠",
-    "Mexico": "🇲🇽",
-    "Cayman Islands": "🇰🇾",
-    "Canada": "🇨🇦",
+    "Torn": ":house:",
+    "Mexico": ":flag_🇲🇽:",
+    "Cayman Islands": ":flag_🇰🇾:",
+    "Canada": ":flag_🇨🇦:",
     "Hawaii": "🌺",  # US state, not country
-    "United Kingdom": "🇬🇧",
-    "Argentina": "🇦🇷",
-    "Switzerland": "🇨🇭",
-    "Japan": "🇯🇵",
-    "China": "🇨🇳",
-    "UAE": "🇦🇪",
-    "South Africa": "🇿🇦",
+    "United Kingdom": ":flag_🇬🇧:",
+    "Argentina": ":flag_🇦🇷:",
+    "Switzerland": ":flag_🇨🇭:",
+    "Japan": ":flag_🇯🇵:",
+    "China": ":flag_🇨🇳:",
+    "UAE": ":flag_🇦🇪:",
+    "South Africa": ":flag_🇿🇦:",
 }
 
 # =====================
