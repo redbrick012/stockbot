@@ -81,13 +81,13 @@ def get_cell_value(sheet_name, cell):
     except Exception:
         return 0
 
-def qty_bar(current: int, target: int, width: int = 5) -> str:
+def qty_bar(current: int, target: int, width: int = 3) -> str:
     if target <= 0:
         return "⬛" * width
 
     ratio = min(current / target, 1)
     filled = round(ratio * width)
-    return "🟩" * filled + "⬛" * (width - filled)
+    return "🟩" * filled + "⬜" * (width - filled)
 
 def scarcity_icon(level: int) -> str:
     if level <= 3:
@@ -181,11 +181,11 @@ def build_embed(inventory_snapshots):
         ]
 
         for item in items:
-            qty = item["qty"]
+            qty = item["qty"][:4}
             bar = qty_bar(qty, target)
 
             flag = item["country_emoji"]
-            item_name = item["item"][:18]  # no padding needed now
+            item_name = item["item"][:12]  # no padding needed now
 
             lines.append(
                 f"{flag} **{item_name}** {qty:<3} {bar}"
