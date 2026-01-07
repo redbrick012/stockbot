@@ -200,8 +200,9 @@ def country_emoji(country: str) -> str:
 #    embed.set_footer(text="Auto-updates every 15 minutes")
  #   return embed
 
+
 def build_inventory_embeds(inventory_snapshots):
-    """Return a list of embeds, each with <=25 fields."""
+    """Return a list of embeds, each with <=25 fields, without repeating header."""
     embeds = []
 
     for name, data in inventory_snapshots.items():
@@ -209,8 +210,8 @@ def build_inventory_embeds(inventory_snapshots):
         items = data["snapshot"]
         target = data["target"]
 
-        # Split items into chunks of 24 (reserve 1 field for category header)
-        chunk_size = 24
+        # Split items into chunks of 25 fields per embed
+        chunk_size = 25  # Discord limit is 25
         for i in range(0, len(items), chunk_size):
             chunk = items[i:i + chunk_size]
 
@@ -220,24 +221,24 @@ def build_inventory_embeds(inventory_snapshots):
                 timestamp=datetime.now(timezone.utc)
             )
 
-            # Category header field (only for the first chunk)
-            if i == 0:
+            # Only add the header field for **continuation embeds**
+            if i > 0:
                 embed.add_field(
-                    name=f"{category_emoji} {name}",
+                    name=f"{category_emoji} {name} (continued)",
                     value="―" * 20,
                     inline=False
                 )
 
             for item in chunk:
                 flag = item.get("country_emoji", "🏳️")
-                item_name = item["item"]#[:12]  # truncate
+                item_name = item["item"][:12]  # truncate
                 qty = item["qty"]
                 bar = qty_bar(qty, target)
 
                 embed.add_field(
                     name=f"{flag} {item_name}",
                     value=f"Qty: {qty}  {bar}",
-                    inline=True
+                    inline=False
                 )
 
             embed.set_footer(text="Auto-updates every 15 minutes")
