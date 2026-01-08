@@ -231,7 +231,7 @@ def build_inventory_embeds(inventory_snapshots):
 
             for item in chunk:
                 flag = item.get("country_emoji", "🏳️")
-                item_name = item["item"][:12]  # truncate
+                item_name = item["item"]  # truncate
                 qty = item["qty"]
                 bar = qty_bar(qty, target)
 
