@@ -210,8 +210,10 @@ def build_inventory_embeds(inventory_snapshots):
         items = data["snapshot"]
         target = data["target"]
 
-        # Split items into chunks of 25 fields per embed
-        chunk_size = 25  # Discord limit is 25
+        # 🔽 SORT: lowest quantity first
+        items = sorted(items, key=lambda i: i["qty"])
+
+        chunk_size = 25  # Discord field limit
         for i in range(0, len(items), chunk_size):
             chunk = items[i:i + chunk_size]
 
@@ -221,7 +223,7 @@ def build_inventory_embeds(inventory_snapshots):
                 timestamp=datetime.now(timezone.utc)
             )
 
-            # Only add the header field for **continuation embeds**
+            # Optional separator for continuation embeds
             if i > 0:
                 embed.add_field(
                     name=f"{category_emoji} {name} (continued)",
@@ -231,13 +233,13 @@ def build_inventory_embeds(inventory_snapshots):
 
             for item in chunk:
                 flag = item.get("country_emoji", "🏳️")
-                item_name = item["item"]  # truncate
+                item_name = item["item"]
                 qty = item["qty"]
                 bar = qty_bar(qty, target)
 
                 embed.add_field(
                     name=f"{flag} {item_name}",
-                    value=f"Qty: {qty}  {bar}",
+                    value=f"Qty: **{qty}**  {bar}",
                     inline=False
                 )
 
