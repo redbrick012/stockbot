@@ -243,7 +243,7 @@ def build_inventory_embeds(inventory_snapshots):
                     inline=False
                 )
 
-            embed.set_footer(text="Auto-updates every 15 minutes")
+            embed.set_footer(text="Auto-updates every 5 minutes")
             embeds.append(embed)
 
     return embeds
@@ -256,7 +256,7 @@ posted_message_ids = []  # Keep all message IDs for the current inventory embeds
 # =====================
 # MAIN LOOP
 # =====================
-@tasks.loop(minutes=15)
+@tasks.loop(minutes=5)
 async def inventory_task():
     global posted_message_ids
 
