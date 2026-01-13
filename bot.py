@@ -23,6 +23,8 @@ COL_SCARCITY = 4
 
 COL_REGION = 5
 
+HARD_TARGET = 500
+
 # =====================
 # INVENTORY CONFIG
 # =====================
@@ -85,9 +87,16 @@ def qty_bar(current: int, target: int, width: int = 5) -> str:
     if target <= 0:
         return "⬛" * width
 
-    ratio = min(current / target, 1)
-    filled = round(ratio * width)
-    return "🟩" * filled + "⬜" * (width - filled)
+    ratio = current / target
+    filled = min(round(ratio * width), width)
+
+    # 🎯 Colour logic
+    if current >= target:
+        filled_emoji = "🟦"   # exceeded / complete
+    else:
+        filled_emoji = "🟩"   # normal progress
+
+    return filled_emoji * filled + "⬜" * (width - filled)
 
 def scarcity_icon(level: int) -> str:
     if level <= 3:
@@ -121,85 +130,6 @@ def parse_inventory(values, target_qty):
 
 def country_emoji(country: str) -> str:
     return COUNTRY_EMOJIS.get(country, "🌍")
-
-#def build_embed(inventory_snapshots):
- #   embed = discord.Embed(
- #       title="📦 Inventory Monitor",
- #       color=discord.Color.blurple(),
- #       timestamp=datetime.now(timezone.utc)
- #   )
-
- #   for name, data in inventory_snapshots.items():
- #       emoji = data["emoji"]  # ✅ correct emoji source
- #       items = data["snapshot"]
- #       target = data["target"]
-
- #       lines = [
- #           "```",
- #           "Item             | Qty | Progress",
- #           "────────────────────────────────────"
- #       ]
-
- #       for item in items:
- #           qty = item["qty"]
- #           bar = qty_bar(qty, target)
-
- #           flag = item["country_emoji"]
- #           item_name = item["item"][:15].ljust(15)
-
- #           lines.append(
- #               f"{flag}  {item_name} | "
- #               f"{qty:<3} | "
- #               f"{bar}"
- #           )
-
-#        lines.append("```")
-
-#        embed.add_field(
-#            name=f"{emoji} {name}",
-#            value="\n".join(lines),
-#            inline=False
-#        )
-
-#    embed.set_footer(text="Auto-updates every 15 minutes")
-#    return embed
-
-#def build_embed(inventory_snapshots):
- #   embed = discord.Embed(
-#        title="📦 Inventory Monitor",
- #       color=discord.Color.blurple(),
-        #timestamp=datetime.now(timezone.utc)
-#    )
-
-#    for name, data in inventory_snapshots.items():
-#        emoji = data["emoji"]
-#        items = data["snapshot"]
- #       target = data["target"]
-
-#        lines = [
-#            "**Flag  Item**      **Qty** **Progress**",
-#        ]
-
-#        for item in items:
-#            qty = item["qty"]
-#            bar = qty_bar(qty, target)
-
- #           flag = item["country_emoji"]
-  #          item_name = item["item"][:12].ljust(10)  # no padding needed now
-
-#            lines.append(
-#                f"{flag} **{item_name}** {qty:<3} {bar}"
-#            )
-
-#        embed.add_field(
-#            name=f"{emoji} {name}",
- #           value="\n".join(lines),
- #           inline=False
-  #      )
-
-#    embed.set_footer(text="Auto-updates every 15 minutes")
- #   return embed
-
 
 def build_inventory_embeds(inventory_snapshots):
     """Return a list of embeds, each with <=25 fields, without repeating header."""
@@ -235,7 +165,7 @@ def build_inventory_embeds(inventory_snapshots):
                 flag = item.get("country_emoji", "🏳️")
                 item_name = item["item"]
                 qty = item["qty"]
-                bar = qty_bar(qty, target)
+                bar = qty_bar(qty, HARD_TARGET)
 
                 embed.add_field(
                     name=f"{flag} {item_name}",
@@ -243,7 +173,7 @@ def build_inventory_embeds(inventory_snapshots):
                     inline=False
                 )
 
-            embed.set_footer(text="Auto-updates every 5 minutes")
+            embed.set_footer(text="Auto-updates every 5 minutes | 🟦: Target met")
             embeds.append(embed)
 
     return embeds
