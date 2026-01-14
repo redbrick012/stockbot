@@ -148,7 +148,7 @@ def build_inventory_embeds(inventory_snapshots):
             chunk = items[i:i + chunk_size]
 
             embed = discord.Embed(
-                title=f"{category_emoji} {name}" if i == 0 else f"{category_emoji} {name} (cont.)",
+                title=f"{category_emoji} {name} Target = 500" if i == 0 else f"{category_emoji} {name} Target = 500 (cont.)",
                 color=discord.Color.blurple(),
                 timestamp=datetime.now(timezone.utc)
             )
@@ -156,7 +156,7 @@ def build_inventory_embeds(inventory_snapshots):
             # Optional separator for continuation embeds
             if i > 0:
                 embed.add_field(
-                    name=f"{category_emoji} {name} (continued)",
+                    name=f"{category_emoji} {name} Target = 500 (continued)",
                     value="―" * 20,
                     inline=False
                 )
