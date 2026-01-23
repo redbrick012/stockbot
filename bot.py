@@ -1,4 +1,5 @@
 import os
+import json
 import discord
 from discord.ext import tasks, commands
 from datetime import datetime, timezone
@@ -13,14 +14,23 @@ INVENTORY_SHEET = os.environ["INVENTORY_SHEET"]
 INVENTORY_CHANNEL_ID = int(os.environ["INVENTORY_CHANNEL_ID"])
 
 # =====================
+# STATE FILE
+# =====================
+STATE_FILE = "inventory_state.json"
+
+# =====================
+# HEARTBEAT CONFIG
+# =====================
+HEARTBEAT_MINUTES = 10
+
+# =====================
 # SHEET COLUMN INDEXES
 # =====================
-COL_ITEM = 0      # ⬅️ MUST be here
+COL_ITEM = 0
 COL_QTY = 1
 COL_COUNTRY = 2
 COL_VALUE = 3
 COL_SCARCITY = 4
-
 COL_REGION = 5
 
 HARD_TARGET = 900
@@ -46,7 +56,7 @@ COUNTRY_EMOJIS = {
     "Mexico": "<:mx:1458203844474572801>",
     "Cayman Islands": "<:ky:1458203876544221459>",
     "Canada": "<:ca:1458204026813415517>",
-    "Hawaii": "<:ushi:1458203802342522981>",  # US state, not country
+    "Hawaii": "<:ushi:1458203802342522981>",
     "United Kingdom": "<:gb:1458203934647910441>",
     "Argentina": "<:ar:1458204051970986170>",
     "Switzerland": "<:ch:1458203997964861590>",
@@ -64,10 +74,22 @@ intents.emojis = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # =====================
-# STATE
+# STATE HANDLING
 # =====================
-previous_snapshot = {}
-posted_message_id = None
+def load_state():
+    if not os.path.exists(STATE_FILE):
+        return []
+    try:
+        with open(STATE_FILE, "r") as f:
+            return json.load(f).get("posted_message_ids", [])
+    except Exception:
+        return []
+
+def save_state(ids):
+    with open(STATE_FILE, "w") as f:
+        json.dump({"posted_message_ids": ids}, f)
+
+posted_message_ids = load_state()
 
 # =====================
 # HELPERS
@@ -83,6 +105,9 @@ def get_cell_value(sheet_name, cell):
     except Exception:
         return 0
 
+def country_emoji(country: str) -> str:
+    return COUNTRY_EMOJIS.get(country, "🌍")
+
 def qty_bar(current: int, target: int, width: int = 5) -> str:
     if target <= 0:
         return "⬛" * width
@@ -90,101 +115,61 @@ def qty_bar(current: int, target: int, width: int = 5) -> str:
     ratio = current / target
     filled = min(round(ratio * width), width)
 
-    # 🎯 Colour logic
-    if current >= target:
-        filled_emoji = "🟦"   # exceeded / complete
-    else:
-        filled_emoji = "🟩"   # normal progress
-
+    filled_emoji = "🟦" if current >= target else "🟩"
     return filled_emoji * filled + "⬜" * (width - filled)
-
-def scarcity_icon(level: int) -> str:
-    if level <= 3:
-        return "🟥"
-    if level <= 6:
-        return "🟨"
-    return "🟩"
 
 def parse_inventory(values, target_qty):
     items = []
-
     for row in values[1:]:
-        if len(row) <= COL_SCARCITY:
-            continue
-
         try:
-            country = row[COL_COUNTRY]
-
             items.append({
                 "item": row[COL_ITEM],
                 "qty": int(row[COL_QTY] or 0),
-                "scarcity": int(row[COL_SCARCITY] or 0),
-                "country": country,
-                "country_emoji": country_emoji(country),
+                "country_emoji": country_emoji(row[COL_COUNTRY]),
                 "target": target_qty,
             })
-        except ValueError:
+        except Exception:
             continue
-
     return items
 
-def country_emoji(country: str) -> str:
-    return COUNTRY_EMOJIS.get(country, "🌍")
-
 def build_inventory_embeds(inventory_snapshots):
-    """Return a list of embeds, each with <=25 fields, without repeating header."""
     embeds = []
 
     for name, data in inventory_snapshots.items():
-        category_emoji = data["emoji"]
-        items = data["snapshot"]
+        items = sorted(data["snapshot"], key=lambda i: i["qty"])
+        emoji = data["emoji"]
         target = data["target"]
 
-        # 🔽 SORT: lowest quantity first
-        items = sorted(items, key=lambda i: i["qty"])
-
-        chunk_size = 25  # Discord field limit
-        for i in range(0, len(items), chunk_size):
-            chunk = items[i:i + chunk_size]
+        for i in range(0, len(items), 25):
+            chunk = items[i:i + 25]
 
             embed = discord.Embed(
-                title=f"{category_emoji} {name} Target = 900" if i == 0 else f"{category_emoji} {name} Target = 500 (cont.)",
+                title=f"{emoji} {name} Target = {target}",
                 color=discord.Color.blurple(),
                 timestamp=datetime.now(timezone.utc)
             )
 
-            # Optional separator for continuation embeds
-            if i > 0:
-                embed.add_field(
-                    name=f"{category_emoji} {name} Target = 900 (continued)",
-                    value="―" * 20,
-                    inline=False
-                )
-
             for item in chunk:
-                flag = item.get("country_emoji", "🏳️")
-                item_name = item["item"]
-                qty = item["qty"]
-                bar = qty_bar(qty, HARD_TARGET)
-
                 embed.add_field(
-                    name=f"{flag} {item_name}",
-                    value=f"Qty: **{qty}**  {bar}",
+                    name=f"{item['country_emoji']} {item['item']}",
+                    value=f"Qty: **{item['qty']}** {qty_bar(item['qty'], target)}",
                     inline=False
                 )
 
-            embed.set_footer(text="Auto-updates every 5 minutes | 🟦: Target met")
+            embed.set_footer(text="Auto-updates every 5 minutes")
             embeds.append(embed)
 
     return embeds
 
 # =====================
-# STATE
+# HEARTBEAT
 # =====================
-posted_message_ids = []  # Keep all message IDs for the current inventory embeds
+@tasks.loop(minutes=HEARTBEAT_MINUTES)
+async def heartbeat_task():
+    print(f"💓 Heartbeat OK | {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
 
 # =====================
-# MAIN LOOP
+# INVENTORY LOOP
 # =====================
 @tasks.loop(minutes=5)
 async def inventory_task():
@@ -200,68 +185,52 @@ async def inventory_task():
         if not values:
             continue
         target = get_cell_value(INVENTORY_SHEET, cfg["target_cell"])
-        snapshot = parse_inventory(values, target)
         inventories[name] = {
-            "snapshot": snapshot,
+            "snapshot": parse_inventory(values, target),
             "target": target,
             "emoji": cfg["emoji"],
         }
 
-    if not inventories:
+    embeds = build_inventory_embeds(inventories)
+    if not embeds:
         return
 
-    embeds = build_inventory_embeds(inventories)
-
-    # Fetch old messages and delete extra ones if needed
-    if posted_message_ids:
-        # Fetch existing messages
+    old_messages = []
+    for msg_id in posted_message_ids:
         try:
-            old_messages = []
-            for msg_id in posted_message_ids:
-                try:
-                    old_messages.append(await channel.fetch_message(msg_id))
-                except discord.NotFound:
-                    continue
+            old_messages.append(await channel.fetch_message(msg_id))
+        except discord.NotFound:
+            pass
 
-            # Delete any old extra messages beyond the new embeds
-            for old_msg in old_messages[len(embeds):]:
-                await old_msg.delete()
+    new_ids = []
 
-            # Edit first n embeds
-            for i, embed in enumerate(embeds):
-                if i < len(old_messages):
-                    await old_messages[i].edit(embed=embed)
-                else:
-                    msg = await channel.send(embed=embed)
-                    posted_message_ids.append(msg.id)
+    for i, embed in enumerate(embeds):
+        if i < len(old_messages):
+            await old_messages[i].edit(embed=embed)
+            new_ids.append(old_messages[i].id)
+        else:
+            msg = await channel.send(embed=embed)
+            new_ids.append(msg.id)
 
-            # Trim list to current embeds
-            posted_message_ids = posted_message_ids[:len(embeds)]
+    # Delete extras
+    for msg in old_messages[len(embeds):]:
+        await msg.delete()
 
-        except Exception as e:
-            print(f"Error updating embeds: {e}")
-            # If something went wrong, clear list and resend
-            posted_message_ids = []
-            for e in embeds:
-                msg = await channel.send(embed=e)
-                posted_message_ids.append(msg.id)
-
-    else:
-        # First time posting
-        posted_message_ids = []
-        for e in embeds:
-            msg = await channel.send(embed=e)
-            posted_message_ids.append(msg.id)
+    posted_message_ids = new_ids
+    save_state(posted_message_ids)
 
 # =====================
 # EVENTS
 # =====================
 @bot.event
 async def on_ready():
-    print(f"✅ Inventory bot logged in as {bot.user}")
+    print(f"✅ Logged in as {bot.user}")
 
     if not inventory_task.is_running():
         inventory_task.start()
+
+    if not heartbeat_task.is_running():
+        heartbeat_task.start()
 
 # =====================
 # RUN
