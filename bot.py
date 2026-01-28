@@ -1,109 +1,55 @@
 import os
 import json
 import discord
-from discord.ext import tasks, commands
+from discord.ext import commands, tasks
 from datetime import datetime, timezone
 
 from sheets import get_sheet_values
 
 # =====================
-# ENVIRONMENT VARIABLES
+# ENV
 # =====================
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 INVENTORY_SHEET = os.environ["INVENTORY_SHEET"]
 INVENTORY_CHANNEL_ID = int(os.environ["INVENTORY_CHANNEL_ID"])
 
-# =====================
-# STATE FILE
-# =====================
-STATE_FILE = "inventory_state.json"
-
-# =====================
-# HEARTBEAT CONFIG
-# =====================
+STATE_FILE = "/app/data/inventory_state.json"
 HEARTBEAT_MINUTES = 10
 
 # =====================
-# SHEET COLUMN INDEXES
-# =====================
-COL_ITEM = 0
-COL_QTY = 1
-COL_COUNTRY = 2
-COL_VALUE = 3
-COL_SCARCITY = 4
-COL_REGION = 5
-
-HARD_TARGET = 900
-
-# =====================
-# INVENTORY CONFIG
-# =====================
-INVENTORIES = {
-    "Plushies": {
-        "range": "B3:G16",
-        "target_cell": "J4",
-        "emoji": "🧸",
-    },
-    "Flowers": {
-        "range": "B20:G31",
-        "target_cell": "J21",
-        "emoji": "🌸",
-    },
-}
-
-COUNTRY_EMOJIS = {
-    "Torn": "<:city:1458205750617833596>",
-    "Mexico": "<:mx:1458203844474572801>",
-    "Cayman Islands": "<:ky:1458203876544221459>",
-    "Canada": "<:ca:1458204026813415517>",
-    "Hawaii": "<:ushi:1458203802342522981>",
-    "United Kingdom": "<:gb:1458203934647910441>",
-    "Argentina": "<:ar:1458204051970986170>",
-    "Switzerland": "<:ch:1458203997964861590>",
-    "Japan": "<:jp:1458203900594094270>",
-    "China": "<:cn:1458203968059474042>",
-    "UAE": "<:ae:1458203747749728610>",
-    "South Africa": "<:za:1458204114524569640>",
-}
-
-# =====================
-# DISCORD SETUP
+# DISCORD
 # =====================
 intents = discord.Intents.default()
-intents.emojis = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # =====================
-# STATE HANDLING
+# STATE
+# =====================
+posted_message_ids = []
+
+# =====================
+# LOAD / SAVE STATE
 # =====================
 def load_state():
-    if not os.path.exists(STATE_FILE):
-        return []
-    try:
+    global posted_message_ids
+    if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r") as f:
-            return json.load(f).get("posted_message_ids", [])
-    except Exception:
-        return []
+            posted_message_ids = json.load(f).get("message_ids", [])
+    else:
+        posted_message_ids = []
 
 def save_state(ids):
     with open(STATE_FILE, "w") as f:
-        json.dump({"posted_message_ids": ids}, f)
-
-posted_message_ids = load_state()
+        json.dump({"message_ids": ids}, f, indent=2)
 
 # =====================
 # HELPERS
 # =====================
-def get_range(sheet_name, cell_range):
-    worksheet = get_sheet_values(sheet_name, worksheet_only=True)
-    return worksheet.get(cell_range)
-
-def get_cell_value(sheet_name, cell):
-    worksheet = get_sheet_values(sheet_name, worksheet_only=True)
-    try:
-        return int(worksheet.acell(cell).value)
-    except Exception:
-        return 0
+COUNTRY_EMOJIS = {
+    "United Kingdom": "🇬🇧",
+    "Japan": "🇯🇵",
+    "USA": "🇺🇸",
+}
 
 def country_emoji(country: str) -> str:
     return COUNTRY_EMOJIS.get(country, "🌍")
@@ -114,7 +60,6 @@ def qty_bar(current: int, target: int, width: int = 5) -> str:
 
     ratio = current / target
     filled = min(round(ratio * width), width)
-
     filled_emoji = "🟦" if current >= target else "🟩"
     return filled_emoji * filled + "⬜" * (width - filled)
 
@@ -123,9 +68,9 @@ def parse_inventory(values, target_qty):
     for row in values[1:]:
         try:
             items.append({
-                "item": row[COL_ITEM],
-                "qty": int(row[COL_QTY] or 0),
-                "country_emoji": country_emoji(row[COL_COUNTRY]),
+                "item": row[0],
+                "qty": int(row[1] or 0),
+                "country_emoji": country_emoji(row[2]),
                 "target": target_qty,
             })
         except Exception:
@@ -169,55 +114,82 @@ async def heartbeat_task():
     print(f"💓 Heartbeat OK | {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
 
 # =====================
-# INVENTORY LOOP
+# CORE REFRESH LOGIC
 # =====================
-@tasks.loop(minutes=5)
-async def inventory_task():
+async def refresh_inventory(silent: bool = True):
     global posted_message_ids
 
     channel = bot.get_channel(INVENTORY_CHANNEL_ID)
     if not channel:
-        return
+        return False
 
-    inventories = {}
-    for name, cfg in INVENTORIES.items():
-        values = get_range(INVENTORY_SHEET, cfg["range"])
-        if not values:
-            continue
-        target = get_cell_value(INVENTORY_SHEET, cfg["target_cell"])
-        inventories[name] = {
-            "snapshot": parse_inventory(values, target),
-            "target": target,
-            "emoji": cfg["emoji"],
+    values = get_sheet_values(INVENTORY_SHEET)
+    if not values:
+        return False
+
+    inventories = {
+        "Inventory": {
+            "snapshot": parse_inventory(values, target_qty=900),
+            "target": 900,
+            "emoji": "📦",
         }
+    }
 
     embeds = build_inventory_embeds(inventories)
     if not embeds:
-        return
-
-    old_messages = []
-    for msg_id in posted_message_ids:
-        try:
-            old_messages.append(await channel.fetch_message(msg_id))
-        except discord.NotFound:
-            pass
+        return False
 
     new_ids = []
 
     for i, embed in enumerate(embeds):
-        if i < len(old_messages):
-            await old_messages[i].edit(embed=embed)
-            new_ids.append(old_messages[i].id)
-        else:
+        try:
+            if i < len(posted_message_ids):
+                msg = await channel.fetch_message(posted_message_ids[i])
+                await msg.edit(embed=embed)  # 🔕 silent edit
+                new_ids.append(msg.id)
+            else:
+                raise IndexError
+        except Exception:
             msg = await channel.send(embed=embed)
             new_ids.append(msg.id)
 
     # Delete extras
-    for msg in old_messages[len(embeds):]:
-        await msg.delete()
+    for old_id in posted_message_ids[len(embeds):]:
+        try:
+            msg = await channel.fetch_message(old_id)
+            await msg.delete()
+        except Exception:
+            pass
 
     posted_message_ids = new_ids
     save_state(posted_message_ids)
+
+    print(f"🔄 Inventory refreshed ({len(new_ids)} embeds)")
+    return True
+
+# =====================
+# AUTO LOOP
+# =====================
+@tasks.loop(minutes=5)
+async def inventory_task():
+    try:
+        await refresh_inventory(silent=True)
+    except Exception as e:
+        print("❌ Inventory loop error:", e)
+
+# =====================
+# SLASH COMMAND
+# =====================
+@bot.tree.command(name="inventory-refresh", description="Force refresh the inventory embeds")
+async def inventory_refresh(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+
+    success = await refresh_inventory(silent=True)
+
+    if success:
+        await interaction.followup.send("✅ Inventory refreshed.", ephemeral=True)
+    else:
+        await interaction.followup.send("❌ Refresh failed.", ephemeral=True)
 
 # =====================
 # EVENTS
@@ -226,11 +198,15 @@ async def inventory_task():
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
 
+    load_state()
+
     if not inventory_task.is_running():
         inventory_task.start()
 
     if not heartbeat_task.is_running():
         heartbeat_task.start()
+
+    await bot.tree.sync()
 
 # =====================
 # RUN
